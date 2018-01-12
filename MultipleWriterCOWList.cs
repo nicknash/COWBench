@@ -1,30 +1,33 @@
 using System.Collections.Generic;
 using System.Threading;
 
-class MultipleWriterCOWList
+namespace COWBench
 {
-    private List<int> _data = new List<int>();
-
-    public void Add(int v)
+    class MultipleWriterCOWList : ISyncList
     {
-        while(true)
+        private List<int> _data = new List<int>();
+
+        public void Add(int v)
         {
-            var local = Volatile.Read(ref _data);
-            var copy = local == null ? new List<int>() : new List<int>(local);
-            copy.Add(v);
-            if(Interlocked.CompareExchange(ref _data, copy, local) == local)
+            while (true)
             {
-                break;
+                var local = Volatile.Read(ref _data);
+                var copy = local == null ? new List<int>() : new List<int>(local);
+                copy.Add(v);
+                if (Interlocked.CompareExchange(ref _data, copy, local) == local)
+                {
+                    break;
+                }
             }
         }
-    }
 
-    public int this[int idx]
-    {
-        get
+        public int this[int idx]
         {
-            var local = Volatile.Read(ref _data);
-            return local[idx];
+            get
+            {
+                var local = Volatile.Read(ref _data);
+                return local[idx];
+            }
         }
     }
 }

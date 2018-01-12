@@ -1,23 +1,26 @@
 using System.Collections.Generic;
 using System.Threading;
 
-class SingleWriterCOWList
+namespace COWBench
 {
-    private List<int> _data = new List<int>();
-
-    public void Add(int v)
+    class SingleWriterCOWList
     {
-        var copy = new List<int>(_data);
-        copy.Add(v);
-        Volatile.Write(ref _data, copy);
-    }
+        private List<int> _data = new List<int>();
 
-    public int this[int idx]
-    {
-        get
+        public void Add(int v)
         {
-            var local = Volatile.Read(ref _data);
-            return local[idx];
+            var copy = new List<int>(_data);
+            copy.Add(v);
+            Volatile.Write(ref _data, copy);
+        }
+
+        public int this[int idx]
+        {
+            get
+            {
+                var local = Volatile.Read(ref _data);
+                return local[idx];
+            }
         }
     }
 }

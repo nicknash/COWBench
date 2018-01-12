@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.Threading;
+using System.Collections.Generic;
 
 namespace COWBench
 {
@@ -8,23 +9,34 @@ namespace COWBench
     {
         public static void Main(string[] args)
         {
-            int testThreads = Int32.Parse(args[0]);
-            var barrier = new Barrier(testThreads + 1);
-            var list = new MultipleWriterCOWList(); // TODO, pre-alloc this so no growing
+            int numTestThreads = Int32.Parse(args[0]);
+            var barrier = new Barrier(numTestThreads + 1);
             int numOperations = 10000;
-            for (int numReaders = 0; numReaders < testThreads; ++numReaders)
+
+            var numThreadCombinations = numTestThreads * (numTestThreads + 1) / 2;
+            var allLists = new List<ISyncList[]>();            
+            for(int i = 0; i < numThreadCombinations; ++i)
             {
-                for (int numWriters = 0; numWriters < testThreads - numReaders; ++numWriters)
+                allLists[i] = new ISyncList[]{new LockList(), new RWLockList(), new MultipleWriterCOWList()};
+            }
+            int listsIdx = 0;
+            for (int numReaders = 0; numReaders < numTestThreads; ++numReaders)
+            {
+                for (int numWriters = 0; numWriters < numTestThreads - numReaders; ++numWriters)
                 {
-                    StartThreads(idx => list[idx], numReaders, numOperations, barrier);
-                    StartThreads(value => { list.Add(value); return value; }, numWriters, numOperations, barrier);
-                    
-                    barrier.SignalAndWait();  
-                    var start = Stopwatch.GetTimestamp();
-                    barrier.SignalAndWait(); 
-                    var end = Stopwatch.GetTimestamp();
-                    // Record completion time and num ops
-                    // Record latency distributions
+                    var lists = allLists[listsIdx];
+                    for(int i = 0; i < lists.Length; ++i)
+                    {
+                        var list = lists[i];
+                        StartThreads(idx => list[idx], numReaders, numOperations, barrier);
+                        StartThreads(value => { list.Add(value); return value; }, numWriters, numOperations, barrier);
+
+                        barrier.SignalAndWait();
+                        var start = Stopwatch.GetTimestamp();
+                        barrier.SignalAndWait();
+                        var end = Stopwatch.GetTimestamp();
+                    }
+                    ++listsIdx;
                 }
             }
         }
@@ -44,11 +56,13 @@ namespace COWBench
         {
             var context = (ThreadContext) p;
             context.StartBarrier.SignalAndWait();
+            var results = context.OperationResults;
             for (int i = 0; i < context.NumOperations; ++i)
             {
                 var before = Stopwatch.GetTimestamp();
-                context.Operation(i);
+                var r = context.Operation(i);
                 var after = Stopwatch.GetTimestamp();
+                results[i % results.Length] = r;
                 context.Latencies[i] = after - before;
             }
         }
