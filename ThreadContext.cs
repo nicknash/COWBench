@@ -8,7 +8,7 @@ namespace COWBench
         public readonly int NumOperations;
         public readonly Func<int, int> Operation;
         public readonly int[] OperationResults;
-        public readonly Barrier StartBarrier; 
+        public readonly Barrier Barrier; 
         public readonly long[] Latencies;
 
         public ThreadContext(int numOperations, Func<int, int> operation, Barrier barrier)
@@ -16,7 +16,7 @@ namespace COWBench
             NumOperations = numOperations;
             Operation = operation;
             Latencies = new long[numOperations];
-            StartBarrier = barrier;
+            Barrier = barrier;
             OperationResults = new int[10];
         }
     }
