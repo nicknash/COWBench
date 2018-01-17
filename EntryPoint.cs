@@ -6,6 +6,13 @@ using System.Collections.Generic;
 
 namespace COWBench
 {
+    class ThreadResult
+    {
+        public void Update(int threadId, string lockType, double latencyNanoseconds, string threadLabel)
+        {
+
+        }
+    }
     class EntryPoint
     {
         public static void Main(string[] args)
@@ -23,6 +30,9 @@ namespace COWBench
                 allLists.Add(new ISyncList[]{new LockList(), new RWLockList(), new MultipleWriterCOWList()});
             }
 
+            var allThreadResults = new ThreadResult[numThreadCombinations * numOperations * allLists.Count];
+            var resultIdx = 0;
+
             for (int numReaders = 0; numReaders <= numTestThreads; ++numReaders)
             {
                 int numWriters = numTestThreads - numReaders;
@@ -31,13 +41,35 @@ namespace COWBench
                 {
                     var list = lists[i];
                     list.Add(0);
-                    StartThreads(idx => list[0], numReaders, numOperations, barrier);
-                    StartThreads(value => { list.Add(value); return value; }, numWriters, numOperations, barrier);
+                    var readContexts = StartThreads(idx => list[0], numReaders, numOperations, barrier);
+                    var writeContexts = StartThreads(value => { list.Add(value); return value; }, numWriters, numOperations, barrier);
 
                     barrier.SignalAndWait();
                     var start = Stopwatch.GetTimestamp();
                     barrier.SignalAndWait();
                     var end = Stopwatch.GetTimestamp();
+                    // TODO: Replace with calls to RecordResults()
+                    // RecordResults(allThreadResults, )
+                    for(int k = 0; k < readContexts.Length; ++k)
+                    {
+                        var context = readContexts[k];
+                        for(int j = 0; j < context.Latencies.Length; ++j)
+                        {
+                            var latencyNanos = 1e9*context.Latencies[j] / (double) Stopwatch.Frequency;
+                            allThreadResults[resultIdx].Update(k, latencyNanos, "Reader");
+                            ++resultIdx;
+                        }
+                    } 
+                    for(int k = 0; k < writeContexts.Length; ++k)
+                    {
+                        var context = writeContexts[k];
+                        for(int j = 0; j < context.Latencies.Length; ++j)
+                        {
+                            var latencyNanos = 1e9*context.Latencies[j] / (double) Stopwatch.Frequency;
+                            allThreadResults[resultIdx].Update(k + readContexts.Length, latencyNanos, "Writer");
+                            ++resultIdx;
+                        }                        
+                    }
                     // TODO: Accumulate results here.
                 }
             }
@@ -48,15 +80,34 @@ namespace COWBench
             }
         }
 
-        private static void StartThreads(Func<int, int> operation, int numThreads, int numOperations, Barrier barrier)
+        private static int RecordResults(ThreadResult[] target, int startResultIdx, int threadIdOffset, string threadTag, ThreadContext[] contexts)
+        {
+            int resultIdx = startResultIdx;
+            for (int k = 0; k < contexts.Length; ++k)
+            {
+                var context = contexts[k];
+                for (int j = 0; j < context.Latencies.Length; ++j)
+                {
+                    var latencyNanos = 1e9 * context.Latencies[j] / (double)Stopwatch.Frequency;
+                    target[resultIdx].Update(k + threadIdOffset, latencyNanos, threadTag);
+                    ++resultIdx;
+                }
+            }
+            return resultIdx;
+        }
+
+        private static ThreadContext[] StartThreads(Func<int, int> operation, int numThreads, int numOperations, Barrier barrier)
         {
             var threads = new Thread[numThreads];
+            var contexts = new ThreadContext[numThreads];
             for(int i = 0; i < numThreads; ++i)
             {
                 threads[i] = new Thread(new ParameterizedThreadStart(Thread)){IsBackground = true};
                 var context = new ThreadContext(numOperations, operation, barrier);
+                contexts[i] = context;
                 threads[i].Start(context);
             }
+            return contexts;
         }
 
         public static void Thread(object p)
