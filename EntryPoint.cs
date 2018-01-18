@@ -6,13 +6,6 @@ using System.Collections.Generic;
 
 namespace COWBench
 {
-    class ThreadResult
-    {
-        public void Update(int threadId, string lockType, double latencyNanoseconds, string threadLabel)
-        {
-
-        }
-    }
     class EntryPoint
     {
         public static void Main(string[] args)
@@ -32,11 +25,16 @@ namespace COWBench
                 }
             }
 
-            var allThreadResults = new ThreadResult[numThreadCombinations * numOperations * allLists.Count];
-            var resultIdx = 0;
-
-            foreach (var capacity in listCapacities)
+            var allThreadResults = new ThreadResult[listCapacities.Length * numThreadCombinations * numOperations * allLists.Count];
+            for(int i = 0; i < allThreadResults.Length; ++i)
             {
+                allThreadResults[i] = new ThreadResult();
+            }
+
+            int resultIdx = 0;
+            for(int capacityIdx = 0; capacityIdx < listCapacities.Length; ++capacityIdx)
+            {
+                var capacity = listCapacities[capacityIdx];
                 for (int numReaders = 0; numReaders <= numTestThreads; ++numReaders)
                 {
                     int numWriters = numTestThreads - numReaders;
@@ -52,40 +50,25 @@ namespace COWBench
                         var start = Stopwatch.GetTimestamp();
                         barrier.SignalAndWait();
                         var end = Stopwatch.GetTimestamp();
-                        // TODO: Replace with calls to RecordResults()
-                        // RecordResults(allThreadResults, )
-                        for (int k = 0; k < readContexts.Length; ++k)
-                        {
-                            var context = readContexts[k];
-                            for (int j = 0; j < context.Latencies.Length; ++j)
-                            {
-                                var latencyNanos = 1e9 * context.Latencies[j] / (double)Stopwatch.Frequency;
-                                allThreadResults[resultIdx].Update(k, latencyNanos, "Reader");
-                                ++resultIdx;
-                            }
-                        }
-                        for (int k = 0; k < writeContexts.Length; ++k)
-                        {
-                            var context = writeContexts[k];
-                            for (int j = 0; j < context.Latencies.Length; ++j)
-                            {
-                                var latencyNanos = 1e9 * context.Latencies[j] / (double)Stopwatch.Frequency;
-                                allThreadResults[resultIdx].Update(k + readContexts.Length, latencyNanos, "Writer");
-                                ++resultIdx;
-                            }
-                        }
-                        // TODO: Accumulate results here.
+                        // TODO: Record throughput results here as well as the latency results below.
+                        var listType = list.GetType().Name.ToString();
+                        resultIdx = RecordResults(allThreadResults, listType, resultIdx, 0, "Reader", readContexts);
+                        resultIdx = RecordResults(allThreadResults, listType, resultIdx + readContexts.Length * numOperations, 0, "Writer", writeContexts);
                     }
                 }
             }
             var today = DateTime.Today.ToString("yyyy-MM-dd");
-            using(var writer = File.CreateText($"COWBench-{today}-{Process.GetCurrentProcess().Id}"))
+            using(var writer = File.CreateText($"COWBench-Latency-{today}-{Process.GetCurrentProcess().Id}.csv"))
             {
-                // TODO: Write thread latency distributions and all thread throughput.
+                foreach(var r in allThreadResults)
+                {
+                    writer.WriteLine($"{r.ThreadId},{r.ThreadType},{r.ListType},{r.LatencyNanoseconds}");
+                }
+                // TODO: Throughput results.
             }
         }
 
-        private static int RecordResults(ThreadResult[] target, int startResultIdx, int threadIdOffset, string threadTag, ThreadContext[] contexts)
+        private static int RecordResults(ThreadResult[] target, string listType, int startResultIdx, int threadIdOffset, string threadTag, ThreadContext[] contexts)
         {
             int resultIdx = startResultIdx;
             for (int k = 0; k < contexts.Length; ++k)
@@ -94,7 +77,7 @@ namespace COWBench
                 for (int j = 0; j < context.Latencies.Length; ++j)
                 {
                     var latencyNanos = 1e9 * context.Latencies[j] / (double)Stopwatch.Frequency;
-                    target[resultIdx].Update(k + threadIdOffset, latencyNanos, threadTag);
+                    target[resultIdx].Update(k + threadIdOffset, listType, latencyNanos, threadTag);
                     ++resultIdx;
                 }
             }
