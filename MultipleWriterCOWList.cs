@@ -5,14 +5,19 @@ namespace COWBench
 {
     class MultipleWriterCOWList : ISyncList
     {
-        private List<int> _data = new List<int>();
+        private CyclicArray _data;
+
+        public MultipleWriterCOWList(int capacity)
+        {
+            _data = new CyclicArray(capacity);
+        }
 
         public void Add(int v)
         {
             while (true)
             {
                 var local = Volatile.Read(ref _data);
-                var copy = local == null ? new List<int>() : new List<int>(local);
+                var copy = new CyclicArray(local); // Assume an initial parent thread creates this instance (so no null check on _data)
                 copy.Add(v);
                 if (Interlocked.CompareExchange(ref _data, copy, local) == local)
                 {

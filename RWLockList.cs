@@ -5,8 +5,13 @@ namespace COWBench
 {
     class RWLockList : ISyncList
     {
-        private List<int> _data = new List<int>();
+        private CyclicArray _data;
         private ReaderWriterLockSlim _rwLock = new ReaderWriterLockSlim();
+
+        public RWLockList(int capacity)
+        {
+            _data = new CyclicArray(capacity);
+        }
 
         public void Add(int v)
         {
