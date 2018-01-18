@@ -20,57 +20,62 @@ namespace COWBench
             int numTestThreads = Int32.Parse(args[0]);
             var barrier = new Barrier(numTestThreads + 1);
             int numOperations = 10000;
+            var listCapacities = new int[]{10, 100, 1000, 10000};
 
             var numThreadCombinations = 1 + numTestThreads;
             var allLists = new List<ISyncList[]>();            
             for(int i = 0; i < numThreadCombinations; ++i)
             {
-                // TODO: For simpler experimental results, consider making these cyclic N element arrays
-                // And try N = 10, 100, 1000 say. (GC + list growth)
-                allLists.Add(new ISyncList[]{new LockList(), new RWLockList(), new MultipleWriterCOWList()});
+                foreach (var c in listCapacities)
+                {
+                    allLists.Add(new ISyncList[]{new LockList(c), new RWLockList(c), new MultipleWriterCOWList(c)});
+                }
             }
 
             var allThreadResults = new ThreadResult[numThreadCombinations * numOperations * allLists.Count];
             var resultIdx = 0;
 
-            for (int numReaders = 0; numReaders <= numTestThreads; ++numReaders)
+            foreach (var capacity in listCapacities)
             {
-                int numWriters = numTestThreads - numReaders;
-                var lists = allLists[numReaders];
-                for (int i = 0; i < lists.Length; ++i)
+                for (int numReaders = 0; numReaders <= numTestThreads; ++numReaders)
                 {
-                    var list = lists[i];
-                    list.Add(0);
-                    var readContexts = StartThreads(idx => list[0], numReaders, numOperations, barrier);
-                    var writeContexts = StartThreads(value => { list.Add(value); return value; }, numWriters, numOperations, barrier);
+                    int numWriters = numTestThreads - numReaders;
+                    var lists = allLists[numReaders * listCapacities.Length];
+                    for (int i = 0; i < lists.Length; ++i)
+                    {
+                        var list = lists[i];
+                        list.Add(0);
+                        var readContexts = StartThreads(idx => list[0], numReaders, numOperations, barrier);
+                        var writeContexts = StartThreads(value => { list.Add(value); return value; }, numWriters, numOperations, barrier);
 
-                    barrier.SignalAndWait();
-                    var start = Stopwatch.GetTimestamp();
-                    barrier.SignalAndWait();
-                    var end = Stopwatch.GetTimestamp();
-                    // TODO: Replace with calls to RecordResults()
-                    // RecordResults(allThreadResults, )
-                    for(int k = 0; k < readContexts.Length; ++k)
-                    {
-                        var context = readContexts[k];
-                        for(int j = 0; j < context.Latencies.Length; ++j)
+                        barrier.SignalAndWait();
+                        var start = Stopwatch.GetTimestamp();
+                        barrier.SignalAndWait();
+                        var end = Stopwatch.GetTimestamp();
+                        // TODO: Replace with calls to RecordResults()
+                        // RecordResults(allThreadResults, )
+                        for (int k = 0; k < readContexts.Length; ++k)
                         {
-                            var latencyNanos = 1e9*context.Latencies[j] / (double) Stopwatch.Frequency;
-                            allThreadResults[resultIdx].Update(k, latencyNanos, "Reader");
-                            ++resultIdx;
+                            var context = readContexts[k];
+                            for (int j = 0; j < context.Latencies.Length; ++j)
+                            {
+                                var latencyNanos = 1e9 * context.Latencies[j] / (double)Stopwatch.Frequency;
+                                allThreadResults[resultIdx].Update(k, latencyNanos, "Reader");
+                                ++resultIdx;
+                            }
                         }
-                    } 
-                    for(int k = 0; k < writeContexts.Length; ++k)
-                    {
-                        var context = writeContexts[k];
-                        for(int j = 0; j < context.Latencies.Length; ++j)
+                        for (int k = 0; k < writeContexts.Length; ++k)
                         {
-                            var latencyNanos = 1e9*context.Latencies[j] / (double) Stopwatch.Frequency;
-                            allThreadResults[resultIdx].Update(k + readContexts.Length, latencyNanos, "Writer");
-                            ++resultIdx;
-                        }                        
+                            var context = writeContexts[k];
+                            for (int j = 0; j < context.Latencies.Length; ++j)
+                            {
+                                var latencyNanos = 1e9 * context.Latencies[j] / (double)Stopwatch.Frequency;
+                                allThreadResults[resultIdx].Update(k + readContexts.Length, latencyNanos, "Writer");
+                                ++resultIdx;
+                            }
+                        }
+                        // TODO: Accumulate results here.
                     }
-                    // TODO: Accumulate results here.
                 }
             }
             var today = DateTime.Today.ToString("yyyy-MM-dd");
