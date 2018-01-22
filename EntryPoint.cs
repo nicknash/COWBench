@@ -55,10 +55,10 @@ namespace COWBench
                         barrier.SignalAndWait();
                         var end = Stopwatch.GetTimestamp();
                         var listType = list.GetType().Name.ToString();
-                        throughputResults[throughputResultIdx].Update(-1, listType, capacity, ToNanos(end - start), numOperations, "ALL");
+                        throughputResults[throughputResultIdx].Update(numTestThreads, listType, capacity, ToNanos(end - start), numOperations, "ALL", numReaders, numWriters);
                         ++throughputResultIdx;
-                        latencyResultIdx = RecordResults(latencyResults, capacity, listType, latencyResultIdx, 0, "Reader", readContexts);
-                        latencyResultIdx = RecordResults(latencyResults, capacity, listType, latencyResultIdx, 0, "Writer", writeContexts);
+                        latencyResultIdx = RecordResults(latencyResults, capacity, listType, latencyResultIdx, 0, "Reader", numReaders, numWriters, readContexts);
+                        latencyResultIdx = RecordResults(latencyResults, capacity, listType, latencyResultIdx, 0, "Writer", numReaders, numWriters, writeContexts);
                     }
                 }
             }
@@ -72,15 +72,15 @@ namespace COWBench
         {
             using (var writer = File.CreateText(fileName))
             {
-                writer.WriteLine($"ThreadId,ThreadType,NumOperations,ListType,Capacity,LatencyNanoseconds");
+                writer.WriteLine($"ThreadId,ThreadType,NumReaders,NumWriters,NumOperations,ListType,Capacity,LatencyNanoseconds");
                 foreach (var r in results)
                 {
-                    writer.WriteLine($"{r.ThreadId},{r.ThreadType},{r.NumOperations},{r.ListType},{r.Capacity},{r.LatencyNanoseconds}");
+                    writer.WriteLine($"{r.ThreadId},{r.ThreadType},{r.NumReaders},{r.NumWriters},{r.NumOperations},{r.ListType},{r.Capacity},{r.LatencyNanoseconds}");
                 }
             }
         }
         private static double ToNanos(long ticks) => 1e9*ticks/Stopwatch.Frequency;
-        private static int RecordResults(ThreadResult[] target, int capacity, string listType, int startResultIdx, int threadIdOffset, string threadTag, ThreadContext[] contexts)
+        private static int RecordResults(ThreadResult[] target, int capacity, string listType, int startResultIdx, int threadIdOffset, string threadTag, int numReaders, int numWriters, ThreadContext[] contexts)
         {
             int resultIdx = startResultIdx;
             for (int k = 0; k < contexts.Length; ++k)
@@ -89,7 +89,7 @@ namespace COWBench
                 for (int j = 0; j < context.Latencies.Length; ++j)
                 {
                     var latencyNanos = ToNanos(context.Latencies[j]);
-                    target[resultIdx].Update(k + threadIdOffset, listType, capacity, latencyNanos, context.Latencies.Length, threadTag);
+                    target[resultIdx].Update(k + threadIdOffset, listType, capacity, latencyNanos, context.Latencies.Length, threadTag, numReaders, numWriters);
                     ++resultIdx;
                 }
             }
