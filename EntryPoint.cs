@@ -6,17 +6,13 @@ using System.Collections.Generic;
 
 namespace COWBench
 {
-    class ThroughputResult
-    {
-
-    }
     class EntryPoint
     {
         public static void Main(string[] args)
         {
             int numTestThreads = Int32.Parse(args[0]);
             var barrier = new Barrier(numTestThreads + 1);
-            int numOperations = 10000;
+            int numOperations = 10;
             var listCapacities = new int[]{10, 100, 1000, 10000};
 
             var numThreadCombinations = 1 + numTestThreads;
@@ -28,8 +24,7 @@ namespace COWBench
                     allLists.Add(new ISyncList[]{new LockList(c), new RWLockList(c), new MultipleWriterCOWList(c)});
                 }
             }
-            // TODO: Fix result counts.
-            var latencyResults = new ThreadResult[listCapacities.Length * numThreadCombinations * numOperations * allLists.Count];
+            var latencyResults = new ThreadResult[listCapacities.Length * numThreadCombinations * allLists[0].Length * numTestThreads * numOperations];
             for(int i = 0; i < latencyResults.Length; ++i)
             {
                 latencyResults[i] = new ThreadResult();
@@ -62,9 +57,8 @@ namespace COWBench
                         var listType = list.GetType().Name.ToString();
                         throughputResults[throughputResultIdx].Update(-1, listType, capacity, ToNanos(end - start), numOperations, "ALL");
                         ++throughputResultIdx;
-                        // TODO: Record throughput results here as well as the latency results below.
                         latencyResultIdx = RecordResults(latencyResults, capacity, listType, latencyResultIdx, 0, "Reader", readContexts);
-                        latencyResultIdx = RecordResults(latencyResults, capacity, listType, latencyResultIdx + readContexts.Length * numOperations, 0, "Writer", writeContexts);
+                        latencyResultIdx = RecordResults(latencyResults, capacity, listType, latencyResultIdx, 0, "Writer", writeContexts);
                     }
                 }
             }
@@ -85,9 +79,7 @@ namespace COWBench
                 }
             }
         }
-
         private static double ToNanos(long ticks) => 1e9*ticks/Stopwatch.Frequency;
-
         private static int RecordResults(ThreadResult[] target, int capacity, string listType, int startResultIdx, int threadIdOffset, string threadTag, ThreadContext[] contexts)
         {
             int resultIdx = startResultIdx;
