@@ -55,7 +55,7 @@ namespace COWBench
                         barrier.SignalAndWait();
                         var end = Stopwatch.GetTimestamp();
                         var listType = list.GetType().Name.ToString();
-                        throughputResults[throughputResultIdx].Update(numTestThreads, listType, capacity, ToNanos(end - start), numOperations, "ALL", numReaders, numWriters);
+                        throughputResults[throughputResultIdx].Update(-1, listType, capacity, ToNanos(end - start), numOperations, "ALL", numReaders, numWriters);
                         ++throughputResultIdx;
                         latencyResultIdx = RecordResults(latencyResults, capacity, listType, latencyResultIdx, 0, "Reader", numReaders, numWriters, readContexts);
                         latencyResultIdx = RecordResults(latencyResults, capacity, listType, latencyResultIdx, 0, "Writer", numReaders, numWriters, writeContexts);
