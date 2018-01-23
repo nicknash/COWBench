@@ -4,8 +4,8 @@ namespace COWBench
 {
     class LockList : ISyncList
     {
-        private CyclicArray _data;
-        private object _lockObject = new object();
+        private readonly CyclicArray _data;
+        private readonly object _lockObject = new object();
 
         public LockList(int capacity)
         {

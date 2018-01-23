@@ -7,20 +7,18 @@ namespace COWBench
         public int Capacity { get; private set; }
         public double LatencyNanoseconds { get; private set; }
         public int NumOperations { get; private set;}
-        public string ThreadType { get; private set; }
-        public int NumReaders { get; private set; }
-        public int NumWriters { get; private set;}
+        public double ReadProportion { get; private set; }
+        public bool IsRead { get; private set; }
 
-        public void Update(int threadId, string listType, int capacity, double latencyNanoseconds, int numOperations, string threadType, int numReaders, int numWriters)
+        public void Update(int threadId, string listType, int capacity, double latencyNanoseconds, int numOperations, double readProportion, bool isRead)
         {
             ThreadId = threadId;
             ListType = listType;
             Capacity = capacity;
             LatencyNanoseconds = latencyNanoseconds;
             NumOperations = numOperations;
-            ThreadType = threadType;
-            NumReaders = numReaders;
-            NumWriters = numWriters;
+            ReadProportion = readProportion;
+            IsRead = isRead;
         }
     }
 }
