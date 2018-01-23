@@ -17,7 +17,6 @@ namespace COWBench
             int numReadProportions = 20;
             var listCapacities = new int[]{10, 100, 1000, 10000};
 
-            //var numThreadCombinations = 1 + numTestThreads;
             var readProportions = Enumerable.Range(0, numReadProportions).Select(i => i / (double) numReadProportions).ToArray();
             var allLists = new List<ISyncList[]>();            
             for(int i = 0; i < numReadProportions; ++i)
@@ -44,7 +43,7 @@ namespace COWBench
                 var capacity = listCapacities[capacityIdx];
                 for(int propIdx = 0; propIdx < numReadProportions; ++propIdx)
                 {
-                    var lists = allLists[numReadProportions * listCapacities.Length];
+                    var lists = allLists[propIdx * listCapacities.Length];
                     var readProportion = readProportions[propIdx];
                     for (int i = 0; i < lists.Length; ++i)
                     {
