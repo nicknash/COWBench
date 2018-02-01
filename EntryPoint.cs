@@ -5,6 +5,8 @@ using System.Diagnostics;
 using System.Threading;
 using System.Collections.Generic;
 
+using HdrHistogram;
+
 namespace COWBench
 {
     class EntryPoint
@@ -82,6 +84,9 @@ namespace COWBench
         private static double ToNanos(long ticks) => 1e9*ticks/Stopwatch.Frequency;
         private static int RecordResults(ThreadResult[] target, int capacity, string listType, int startResultIdx, int threadIdOffset, double readProportion, ThreadContext[] contexts)
         {
+            // TODO: Update to use histogrammed results.
+            // This would give numReadProportions * numCapacities * numListTypes histograms
+            // Ball-park: 20 * 4 * 3, and double that to keep readers and writers separate.
             int resultIdx = startResultIdx;
             for (int k = 0; k < contexts.Length; ++k)
             {
@@ -129,7 +134,7 @@ namespace COWBench
                     context.SyncList.Add(i);
                 }
                 var after = Stopwatch.GetTimestamp();
-                context.Latencies[i] = after - before;
+                context.Latencies.RecordValue(after - before);
             }
             context.Barrier.SignalAndWait();
         }

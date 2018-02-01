@@ -1,5 +1,6 @@
 using System;
 using System.Threading;
+using HdrHistogram;
 
 namespace COWBench
 {
@@ -9,14 +10,14 @@ namespace COWBench
         public readonly int NumOperations;
         public readonly int[] OperationResults;
         public readonly Barrier Barrier; 
-        public readonly long[] Latencies;
+        public readonly LongHistogram Latencies;
         public readonly bool[] isRead;
 
         public ThreadContext(ISyncList list, int numOperations, Barrier barrier, double readProportion)
         {
             SyncList = list;
             NumOperations = numOperations;
-            Latencies = new long[numOperations];
+            Latencies = new LongHistogram(TimeStamp.Seconds(1), 3);
             Barrier = barrier;
             OperationResults = new int[10];
             isRead = new bool[numOperations];
