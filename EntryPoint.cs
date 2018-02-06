@@ -81,23 +81,29 @@ namespace COWBench
                 }
             }
         }
+
+        class LatencyResult
+        {
+            public readonly double Percentile;
+            public readonly double PercentileLevel;
+            public readonly long CountAtThisValue;
+            
+            public void UpdateFrom(long countAtThisValue, double percentile, double percentileLevel, long totalCountToThisValue, long totalValueToThisValue)
+            {
+
+            }
+        }
         private static double ToNanos(long ticks) => 1e9*ticks/Stopwatch.Frequency;
-        private static int RecordResults(ThreadResult[] target, int capacity, string listType, int startResultIdx, int threadIdOffset, double readProportion, ThreadContext[] contexts)
+        private static int RecordResults(LatencyResult[] target, int capacity, string listType, int startResultIdx, int threadIdOffset, double readProportion, ThreadContext[] contexts)
         {
             // TODO: Update to use histogrammed results.
             // This would give numReadProportions * numCapacities * numListTypes histograms
-            // Ball-park: 20 * 4 * 3, and double that to keep readers and writers separate.
+            // Ball-park: 20 * 4 * 3
             int resultIdx = startResultIdx;
-            for (int k = 0; k < contexts.Length; ++k)
+            foreach(var v in contexts[0].Latencies.Percentiles(3))
             {
-                var context = contexts[k];
-                for (int j = 0; j < context.Latencies.Length; ++j)
-                {
-                    var latencyNanos = ToNanos(context.Latencies[j]);
-                    var isRead = context.isRead[j];
-                    target[resultIdx].Update(k + threadIdOffset, listType, capacity, latencyNanos, context.Latencies.Length, readProportion, isRead);
-                    ++resultIdx;
-                }
+                var t = target[resultIdx];
+                t.UpdateFrom(v.CountAtValueIteratedTo, v.Percentile, v.PercentileLevelIteratedTo, v.TotalCountToThisValue, v.TotalValueToThisValue);
             }
             return resultIdx;
         }
@@ -109,7 +115,8 @@ namespace COWBench
             for(int i = 0; i < numThreads; ++i)
             {
                 threads[i] = new Thread(new ParameterizedThreadStart(Thread)){IsBackground = true};
-                var context = new ThreadContext(list, numOperations, barrier, readProportion);
+                var latencies = i == 0 ? new LongHistogram(TimeStamp.Seconds(1), 3) : null;
+                var context = new ThreadContext(list, numOperations, barrier, readProportion, latencies);
                 contexts[i] = context;
                 threads[i].Start(context);
             }
@@ -134,7 +141,7 @@ namespace COWBench
                     context.SyncList.Add(i);
                 }
                 var after = Stopwatch.GetTimestamp();
-                context.Latencies.RecordValue(after - before);
+                context.Latencies?.RecordValue(after - before);
             }
             context.Barrier.SignalAndWait();
         }

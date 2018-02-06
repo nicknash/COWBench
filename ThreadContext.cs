@@ -13,11 +13,11 @@ namespace COWBench
         public readonly LongHistogram Latencies;
         public readonly bool[] isRead;
 
-        public ThreadContext(ISyncList list, int numOperations, Barrier barrier, double readProportion)
+        public ThreadContext(ISyncList list, int numOperations, Barrier barrier, double readProportion, LongHistogram latencies)
         {
             SyncList = list;
             NumOperations = numOperations;
-            Latencies = new LongHistogram(TimeStamp.Seconds(1), 3);
+            Latencies = latencies;
             Barrier = barrier;
             OperationResults = new int[10];
             isRead = new bool[numOperations];
