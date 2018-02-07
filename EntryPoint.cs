@@ -9,7 +9,7 @@ using HdrHistogram;
 
 namespace COWBench
 {
-    class EntryPoint
+    partial class EntryPoint
     {
         public static void Main(string[] args)
         {
@@ -28,15 +28,15 @@ namespace COWBench
                     allLists.Add(new ISyncList[]{new LockList(c), new RWLockList(c), new MultipleWriterCOWList(c)});
                 }
             }
-            var latencyResults = new ThreadResult[listCapacities.Length * numReadProportions * allLists[0].Length * numTestThreads * numOperations];
+            var latencyResults = new LatencyResult[listCapacities.Length * numReadProportions * allLists[0].Length * numTestThreads * numOperations];
             for(int i = 0; i < latencyResults.Length; ++i)
             {
-                latencyResults[i] = new ThreadResult();
+                latencyResults[i] = new LatencyResult();
             }
-            var throughputResults = new ThreadResult[listCapacities.Length * numReadProportions * allLists[0].Length]; 
+            var throughputResults = new ThroughputResult[listCapacities.Length * numReadProportions * allLists[0].Length]; 
             for(int i = 0; i < throughputResults.Length; ++i)
             {
-                throughputResults[i] = new ThreadResult();
+                throughputResults[i] = new ThroughputResult();
             }
             int latencyResultIdx = 0;
             int throughputResultIdx = 0;
@@ -58,7 +58,7 @@ namespace COWBench
                         barrier.SignalAndWait();
                         var end = Stopwatch.GetTimestamp();
                         var listType = list.GetType().Name.ToString();
-                        throughputResults[throughputResultIdx].Update(-1, listType, capacity, ToNanos(end - start), numOperations, readProportion, false);
+                        throughputResults[throughputResultIdx].Update(listType, capacity, ToNanos(end - start), readProportion);
                         ++throughputResultIdx;
                         latencyResultIdx = RecordResults(latencyResults, capacity, listType, latencyResultIdx, 0, readProportion, threadContexts);
                     }
@@ -66,44 +66,36 @@ namespace COWBench
             }
             var today = DateTime.Today.ToString("yyyy-MM-dd");
             var suffix = $"{today}-{Process.GetCurrentProcess().Id}";
-            WriteResults($"COWBench-Latency-{suffix}.csv", latencyResults);
-            WriteResults($"COWBench-Throughput-{suffix}.csv", throughputResults);
+            WriteResults($"COWBench-Latency-{suffix}.csv", 
+                        "ListType,Capacity,ReadProportion,CountAtThisValue,Percentile,PercentileLevel,TotalCountToThisValue,TotalValueToThisValue",
+                         latencyResults,
+                         r => $"{r.ListType},{r.Capacity},{r.ReadProportion},{r.CountAtThisValue},{r.Percentile},{r.PercentileLevel},{r.TotalCountToThisValue},{r.TotalValueToThisValue}");
+            
+            WriteResults($"COWBench-Throughput-{suffix}.csv", "ListType,Capacity,LatencyNanoseconds,ReadProportion", 
+                         throughputResults, 
+                         r => $"{r.ListType},{r.Capacity},{r.LatencyNanoseconds},{r.ReadProportion}");
         }
 
-        private static void WriteResults(string fileName, ThreadResult[] results)
+        private static void WriteResults<T>(string fileName, string header, T[] results, Func<T, string> format)
         {
             using (var writer = File.CreateText(fileName))
             {
-                writer.WriteLine($"ThreadId,ReadProportion,IsRead,NumOperations,ListType,Capacity,LatencyNanoseconds");
+                writer.WriteLine(header);
                 foreach (var r in results)
                 {
-                    writer.WriteLine($"{r.ThreadId},{r.ReadProportion},{r.IsRead},{r.NumOperations},{r.ListType},{r.Capacity},{r.LatencyNanoseconds}");
+                    writer.WriteLine(format(r));
                 }
-            }
-        }
-
-        class LatencyResult
-        {
-            public readonly double Percentile;
-            public readonly double PercentileLevel;
-            public readonly long CountAtThisValue;
-            
-            public void UpdateFrom(long countAtThisValue, double percentile, double percentileLevel, long totalCountToThisValue, long totalValueToThisValue)
-            {
-
             }
         }
         private static double ToNanos(long ticks) => 1e9*ticks/Stopwatch.Frequency;
         private static int RecordResults(LatencyResult[] target, int capacity, string listType, int startResultIdx, int threadIdOffset, double readProportion, ThreadContext[] contexts)
         {
-            // TODO: Update to use histogrammed results.
-            // This would give numReadProportions * numCapacities * numListTypes histograms
-            // Ball-park: 20 * 4 * 3
             int resultIdx = startResultIdx;
             foreach(var v in contexts[0].Latencies.Percentiles(3))
             {
                 var t = target[resultIdx];
-                t.UpdateFrom(v.CountAtValueIteratedTo, v.Percentile, v.PercentileLevelIteratedTo, v.TotalCountToThisValue, v.TotalValueToThisValue);
+                t.UpdateFrom(listType, capacity, v.CountAtValueIteratedTo, v.Percentile, v.PercentileLevelIteratedTo, v.TotalCountToThisValue, v.TotalValueToThisValue, readProportion);
+                ++resultIdx;
             }
             return resultIdx;
         }
