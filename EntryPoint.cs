@@ -15,8 +15,9 @@ namespace COWBench
         {
             int numTestThreads = Int32.Parse(args[0]);
             var barrier = new Barrier(numTestThreads + 1);
-            int numOperations = 1000;
+            int numOperations = 10000;
             int numReadProportions = 20;
+            int maxPercentiles = 256;
             var listCapacities = new int[]{10, 100, 1000, 10000};
 
             var readProportions = Enumerable.Range(0, numReadProportions).Select(i => i / (double) numReadProportions).ToArray();
@@ -28,7 +29,7 @@ namespace COWBench
                     allLists.Add(new ISyncList[]{new LockList(c), new RWLockList(c), new MultipleWriterCOWList(c)});
                 }
             }
-            var latencyResults = new LatencyResult[listCapacities.Length * numReadProportions * allLists[0].Length * numTestThreads * numOperations];
+            var latencyResults = new LatencyResult[listCapacities.Length * numReadProportions * allLists[0].Length * maxPercentiles];
             for(int i = 0; i < latencyResults.Length; ++i)
             {
                 latencyResults[i] = new LatencyResult();
@@ -68,22 +69,22 @@ namespace COWBench
             var suffix = $"{today}-{Process.GetCurrentProcess().Id}";
             WriteResults($"COWBench-Latency-{suffix}.csv", 
                         "ListType,Capacity,ReadProportion,CountAtThisValue,Percentile,PercentileLevel,TotalCountToThisValue,TotalValueToThisValue",
-                         latencyResults,
+                         latencyResults, latencyResultIdx,
                          r => $"{r.ListType},{r.Capacity},{r.ReadProportion},{r.CountAtThisValue},{r.Percentile},{r.PercentileLevel},{r.TotalCountToThisValue},{r.TotalValueToThisValue}");
             
             WriteResults($"COWBench-Throughput-{suffix}.csv", "ListType,Capacity,LatencyNanoseconds,ReadProportion", 
-                         throughputResults, 
+                         throughputResults, throughputResultIdx,
                          r => $"{r.ListType},{r.Capacity},{r.LatencyNanoseconds},{r.ReadProportion}");
         }
 
-        private static void WriteResults<T>(string fileName, string header, T[] results, Func<T, string> format)
+        private static void WriteResults<T>(string fileName, string header, T[] results, int numResults, Func<T, string> format)
         {
             using (var writer = File.CreateText(fileName))
             {
                 writer.WriteLine(header);
-                foreach (var r in results)
+                for (int i = 0; i < numResults; ++i)
                 {
-                    writer.WriteLine(format(r));
+                    writer.WriteLine(format(results[i]));
                 }
             }
         }
@@ -97,6 +98,7 @@ namespace COWBench
                 t.UpdateFrom(listType, capacity, v.CountAtValueIteratedTo, v.Percentile, v.PercentileLevelIteratedTo, v.TotalCountToThisValue, v.TotalValueToThisValue, readProportion);
                 ++resultIdx;
             }
+            Console.WriteLine($"Added {resultIdx - startResultIdx} latencies.");
             return resultIdx;
         }
 
