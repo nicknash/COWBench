@@ -98,7 +98,6 @@ namespace COWBench
                 t.UpdateFrom(listType, capacity, v.CountAtValueIteratedTo, v.Percentile, v.PercentileLevelIteratedTo, v.TotalCountToThisValue, v.TotalValueToThisValue, readProportion);
                 ++resultIdx;
             }
-            Console.WriteLine($"Added {resultIdx - startResultIdx} latencies.");
             return resultIdx;
         }
 
