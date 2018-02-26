@@ -9,8 +9,12 @@ namespace COWBench
         public double PercentileLevel;
         public long TotalCountToThisValue;
         public long TotalValueToThisValue;
+        public double ValueIteratedFromNanos;
+        public double ValueIteratedToNanos;
         public double ReadProportion;
-        public void UpdateFrom(string listType, int capacity, long countAtThisValue, double percentile, double percentileLevel, long totalCountToThisValue, long totalValueToThisValue, double readProportion)
+        
+        public void UpdateFrom(string listType, int capacity, long countAtThisValue, double percentile, double percentileLevel, long totalCountToThisValue, 
+                               long totalValueToThisValue, double valueIteratedFromNanos, double valueIteratedToNanos, double readProportion)
         {
             ListType = listType;
             Capacity = capacity;
@@ -19,6 +23,8 @@ namespace COWBench
             PercentileLevel = percentileLevel;
             TotalCountToThisValue = totalCountToThisValue;
             TotalValueToThisValue = totalValueToThisValue;
+            ValueIteratedFromNanos = valueIteratedFromNanos;
+            ValueIteratedToNanos = valueIteratedToNanos;
             ReadProportion = readProportion;
         }
     }

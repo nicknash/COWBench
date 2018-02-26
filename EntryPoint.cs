@@ -68,9 +68,9 @@ namespace COWBench
             var today = DateTime.Today.ToString("yyyy-MM-dd");
             var suffix = $"{today}-{Process.GetCurrentProcess().Id}";
             WriteResults($"COWBench-Latency-{suffix}.csv", 
-                        "ListType,Capacity,ReadProportion,CountAtThisValue,Percentile,PercentileLevel,TotalCountToThisValue,TotalValueToThisValue",
+                        "ListType,Capacity,ReadProportion,CountAtThisValue,Percentile,PercentileLevel,TotalCountToThisValue,TotalValueToThisValue,ValueIteratedFromNanos,ValueIteratedToNanos",
                          latencyResults, latencyResultIdx,
-                         r => $"{r.ListType},{r.Capacity},{r.ReadProportion},{r.CountAtThisValue},{r.Percentile},{r.PercentileLevel},{r.TotalCountToThisValue},{r.TotalValueToThisValue}");
+                         r => $"{r.ListType},{r.Capacity},{r.ReadProportion},{r.CountAtThisValue},{r.Percentile},{r.PercentileLevel},{r.TotalCountToThisValue},{r.TotalValueToThisValue},{r.ValueIteratedFromNanos},{r.ValueIteratedToNanos}");
             
             WriteResults($"COWBench-Throughput-{suffix}.csv", "ListType,Capacity,LatencyNanoseconds,ReadProportion", 
                          throughputResults, throughputResultIdx,
@@ -95,7 +95,8 @@ namespace COWBench
             foreach(var v in contexts[0].Latencies.Percentiles(3))
             {
                 var t = target[resultIdx];
-                t.UpdateFrom(listType, capacity, v.CountAtValueIteratedTo, v.Percentile, v.PercentileLevelIteratedTo, v.TotalCountToThisValue, v.TotalValueToThisValue, readProportion);
+                t.UpdateFrom(listType, capacity, v.CountAtValueIteratedTo, v.Percentile, v.PercentileLevelIteratedTo, 
+                             v.TotalCountToThisValue, v.TotalValueToThisValue, ToNanos(v.ValueIteratedFrom), ToNanos(v.ValueIteratedTo), readProportion);
                 ++resultIdx;
             }
             return resultIdx;
