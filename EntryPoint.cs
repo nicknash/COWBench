@@ -46,10 +46,11 @@ namespace COWBench
                 var capacity = listCapacities[capacityIdx];
                 for(int propIdx = 0; propIdx < numReadProportions; ++propIdx)
                 {
-                    var lists = allLists[propIdx * listCapacities.Length];
+                    var lists = allLists[capacityIdx + propIdx * listCapacities.Length];
                     var readProportion = readProportions[propIdx];
                     for (int i = 0; i < lists.Length; ++i)
                     {
+                         
                         var list = lists[i];
                         list.Add(0);
                         var threadContexts = StartThreads(list, numTestThreads, numOperations, barrier, readProportion);
